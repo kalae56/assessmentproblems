@@ -1,0 +1,97 @@
+#SERVER UI
+
+# Load libraries
+library(shiny)
+library(tidyverse)
+
+# Read in data
+adult <- read_csv("adult.csv")
+# Convert column names to lowercase for convenience 
+names(adult) <- tolower(names(adult))
+
+# Define server logic
+shinyServer(function(input, output) {
+  
+  df_country <- reactive({
+    adult %>% filter(native_country == input$country)
+  })
+  
+  output$p1 <- renderPlot({
+    data <- df_country()
+    if (input$graph_type == "histogram") {
+      ggplot(data, aes_string(x = input$continuous_variable)) +
+        geom_histogram() +
+        facet_wrap(~prediction)
+    } else {
+      ggplot(data, aes_string(x = input$continuous_variable)) +
+        geom_boxplot() +
+        coord_flip() +
+        facet_wrap(~prediction)
+    }
+  })
+  
+  output$p2 <- renderPlot({
+    data <- df_country()
+    p <- ggplot(data, aes_string(x = input$categorical_variable, fill = 'prediction'))
+    
+    if (input$is_stacked) {
+      p + geom_bar(stat = "count", position = "stack") +
+        labs(x = input$categorical_variable, y = "Count") +
+        theme_minimal()
+    } else {
+      p + geom_bar(stat = "count", position = "dodge") +
+        labs(x = input$categorical_variable, y = "Count") +
+        facet_wrap(~prediction) +
+        theme_minimal()
+    }
+  })
+})
+
+
+
+UI.R 
+
+library(shiny)
+library(tidyverse)
+ui <- fluidPage(
+  titlePanel("Demographic Insights for Targeted Advertising"),
+  fluidRow(
+    column(width = 12,
+           wellPanel(
+             selectInput("country", "Select Country:", 
+                         choices = c("United-States", "Canada", "Mexico", "Germany", "Philippines"))
+           )
+    )
+  ),
+  
+  fluidRow(
+    column(width = 6,
+           radioButtons("continuous_variable", "Variable:", 
+                        choices = c("Age" = "age", "Hours per week" = "hours_per_week"))
+    ),
+    column(width = 6,
+           radioButtons("graph_type", "Graph Type:", 
+                        choices = c("Histogram" = "histogram", "Boxplot" = "boxplot"))
+    )
+  ),
+  
+  fluidRow(
+    column(width = 12,
+           plotOutput("p1")
+    )
+  ),
+  fluidRow(
+    column(width = 6,
+           radioButtons("categorical_variable", "Variable:", 
+                        choices = c("Education" = "education", "Workclass" = "workclass", "Sex" = "sex"))
+    ),
+    column(width = 3,
+           checkboxInput("is_stacked", "Stacked Bar Charts", value = TRUE)
+    ),
+    column(width = 3,
+           plotOutput("p2")
+    )
+  )
+)
+server <- function(input, output) {}
+shinyApp(ui = ui, server = server)
